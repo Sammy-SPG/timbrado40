@@ -1,0 +1,187 @@
+<?php
+
+namespace app\models\form;
+
+use yii\base\Model;
+
+/**
+ * IngresoForm es el modelo para el formulario de timbrado de Ingresos.
+ * No usa base de datos.
+ */
+class IngresoForm extends Model
+{
+    // --- DATOS DEL COMPROBANTE ---
+    public $formaPago;
+    public $metodoPago;
+
+    // --- DATOS DEL RECEPTOR ---
+    public $receptorRfc;
+    public $receptorNombre;
+    public $receptorDomicilioFiscal; // Código Postal
+    public $receptorRegimenFiscal;
+    public $usoCfdi;
+
+    // --- DATOS DEL CONCEPTO (SIMPLE) ---
+    // Para este demo, solo permitiremos 1 concepto
+    public $conceptoClaveProdServ;
+    public $conceptoClaveUnidad;
+    public $conceptoCantidad;
+    public $conceptoDescripcion;
+    public $conceptoValorUnitario;
+    public $conceptoObjetoImp; // 01=No objeto, 02=Sí objeto
+    public $conceptoConIva; // 0=No, 1=Sí (IVA 16%)
+
+
+    public function rules()
+    {
+        return [
+            // Todos son requeridos
+            [[
+                'formaPago',
+                'metodoPago',
+                'receptorRfc',
+                'receptorNombre',
+                'receptorDomicilioFiscal',
+                'receptorRegimenFiscal',
+                'usoCfdi',
+                'conceptoClaveProdServ',
+                'conceptoClaveUnidad',
+                'conceptoCantidad',
+                'conceptoDescripcion',
+                'conceptoValorUnitario',
+                'conceptoObjetoImp',
+                'conceptoConIva'
+            ], 'required'],
+
+            // Formatos específicos
+            ['receptorRfc', 'match', 'pattern' => '/^[A-Z&Ñ]{3,4}[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[A-Z0-9]{2}[0-9A]$/'],
+            ['receptorDomicilioFiscal', 'match', 'pattern' => '/^[0-9]{5}$/'],
+            [['conceptoCantidad', 'conceptoValorUnitario'], 'number'],
+            ['conceptoConIva', 'boolean'],
+            [['receptorNombre', 'conceptoDescripcion'], 'string', 'max' => 255],
+        ];
+    }
+
+    public function attributeLabels()
+    {
+        return [
+            'formaPago' => 'Forma de Pago',
+            'metodoPago' => 'Método de Pago',
+            'receptorRfc' => 'RFC del Receptor',
+            'receptorNombre' => 'Razón Social del Receptor',
+            'receptorDomicilioFiscal' => 'Código Postal Receptor (Domicilio Fiscal)',
+            'receptorRegimenFiscal' => 'Régimen Fiscal Receptor',
+            'usoCfdi' => 'Uso de CFDI',
+            'conceptoClaveProdServ' => 'Clave Producto/Servicio',
+            'conceptoClaveUnidad' => 'Clave de Unidad',
+            'conceptoCantidad' => 'Cantidad',
+            'conceptoDescripcion' => 'Descripción',
+            'conceptoValorUnitario' => 'Valor Unitario',
+            'conceptoObjetoImp' => 'Objeto de Impuesto',
+            'conceptoConIva' => '¿Aplica IVA 16%?',
+        ];
+    }
+
+    /**
+     * Este método transforma el modelo plano del formulario
+     * al array anidado que espera el SDK de MultiFacturas.
+     */
+    public function getDatosParaSdk()
+    {
+        // 1. Calcular totales e impuestos (basado en el concepto simple)
+        $subtotal = round($this->conceptoCantidad * $this->conceptoValorUnitario, 2);
+        $totalIva = 0;
+        $impuestosConcepto = null;
+        $impuestosGlobales = null;
+
+        if ($this->conceptoConIva == 1) $totalIva = round($subtotal * 0.16, 2);
+
+        $impuestosConcepto = [
+            'Traslados' => [
+                [
+                    'Base' => $subtotal,
+                    'Impuesto' => "0" . $this->conceptoObjetoImp,
+                    'TipoFactor' => 'Tasa',
+                    'TasaOCuota' => $this->conceptoConIva == 1 ? '0.160000' : '0.000000',
+                    'Importe' => $totalIva
+                ]
+            ]
+        ];
+
+        // Estructura de impuestos para el nodo raíz
+        $impuestosGlobales = [
+            'TotalImpuestosTrasladados' => $totalIva,
+            'translados' => [
+                [
+                    'Base' => $subtotal,
+                    'Impuesto' => "0" . $this->conceptoObjetoImp,
+                    'TipoFactor' => 'Tasa',
+                    'TasaOCuota' => $this->conceptoConIva == 1 ? '0.160000' : '0.000000',
+                    'Importe' => $totalIva
+                ]
+            ]
+        ];
+
+        $total = $subtotal + $totalIva;
+
+        // 2. Armar el array final
+        $datos = [
+            // --- Comprobante ---
+            "factura" => [
+                "condicionesDePago" => "CONDICIONEES",
+                "fecha_expedicion" => date('Y-m-d\TH:i:s', time() - 120),
+                "folio" => "0001",
+                "forma_pago" => $this->formaPago,
+                "metodo_pago" => $this->metodoPago,
+                "tipocomprobante" => "I", // INGRESO
+                "LugarExpedicion" => \Yii::$app->params['emisor']['LugarExpedicion'],
+                "serie" => "FF",
+                "tipocambio" => 1,
+                "Exportacion" => "01", // 01 = No aplica
+                "moneda" => "MXN",
+                "subtotal" => $subtotal,
+                "total" => $total,
+            ],
+
+            // --- Emisor (Fijo desde params) ---
+            'emisor' => [
+                'rfc' => \Yii::$app->params['emisor']['rfc'],
+                'nombre' => \Yii::$app->params['emisor']['nombre'],
+                'RegimenFiscal' => \Yii::$app->params['emisor']['RegimenFiscal'],
+            ],
+
+            // --- Receptor (Dinámico desde form) ---
+            'receptor' => [
+                'rfc' => $this->receptorRfc,
+                'nombre' => $this->receptorNombre,
+                'DomicilioFiscalReceptor' => $this->receptorDomicilioFiscal,
+                'RegimenFiscalReceptor' => $this->receptorRegimenFiscal,
+                'UsoCFDI' => $this->usoCfdi,
+            ],
+
+            // --- Conceptos (Dinámico desde form) ---
+            'conceptos' => [
+                [
+                    'ClaveProdServ' => $this->conceptoClaveProdServ,
+                    'cantidad' => $this->conceptoCantidad,
+                    'ClaveUnidad' => $this->conceptoClaveUnidad,
+                    'descripcion' => $this->conceptoDescripcion,
+                    'valorunitario' => $this->conceptoValorUnitario,
+                    'importe' => $subtotal,
+                    'ObjetoImp' => $this->conceptoObjetoImp,
+                ]
+            ],
+        ];
+
+        // Añadir impuestos solo si existen
+        if ($impuestosConcepto) {
+            $datos['conceptos'][0]['Impuestos'] = $impuestosConcepto;
+        }
+
+        if ($impuestosGlobales) {
+            $datos['impuestos'] = $impuestosGlobales;
+        }
+
+        return $datos;
+    }
+}

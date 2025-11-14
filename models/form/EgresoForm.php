@@ -42,7 +42,6 @@ class EgresoForm extends Model
     public function rules()
     {
         return [
-            // Todos son requeridos
             [[
                 'formaPago',
                 'metodoPago',
@@ -61,8 +60,6 @@ class EgresoForm extends Model
                 'conceptoObjetoImp',
                 'conceptoConIva'
             ], 'required'],
-
-            // Formatos específicos
             ['receptorRfc', 'match', 'pattern' => '/^[A-Z&Ñ]{3,4}[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[A-Z0-9]{2}[0-9A]$/'],
             ['receptorDomicilioFiscal', 'match', 'pattern' => '/^[0-9]{5}$/'],
             ['cfdiRelacionadoUuid', 'match', 'pattern' => '/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/', 'message' => 'El UUID debe tener el formato XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX'],
@@ -100,8 +97,6 @@ class EgresoForm extends Model
      */
     public function getDatosParaSdk()
     {
-        // 1. Calcular totales e impuestos (basado en el concepto simple)
-        // La lógica de cálculo de impuestos es idéntica a la de Ingreso
         $subtotal = round($this->conceptoCantidad * $this->conceptoValorUnitario, 2);
         $totalIva = 0;
         $impuestosConcepto = null;
@@ -109,8 +104,6 @@ class EgresoForm extends Model
 
         if ($this->conceptoConIva == 1) $totalIva = round($subtotal * 0.16, 2);
 
-        // El SAT requiere que los nodos de impuestos existan si ObjetoImp = 02
-        // aunque la tasa sea 0.
         if ($this->conceptoObjetoImp == '02') {
             $impuestosConcepto = [
                 'Traslados' => [
@@ -124,7 +117,6 @@ class EgresoForm extends Model
                 ]
             ];
 
-            // Estructura de impuestos para el nodo raíz
             $impuestosGlobales = [
                 'TotalImpuestosTrasladados' => $totalIva,
                 'translados' => [
@@ -141,9 +133,7 @@ class EgresoForm extends Model
 
         $total = $subtotal + $totalIva;
 
-        // 2. Armar el array final
         $datos = [
-            // --- Comprobante ---
             "factura" => [
                 "fecha_expedicion" => date('Y-m-d\TH:i:s', time() - 120),
                 "folio" => "0002",
@@ -195,7 +185,6 @@ class EgresoForm extends Model
             ],
         ];
 
-        // Añadir impuestos solo si existen
         if ($impuestosConcepto) {
             $datos['conceptos'][0]['Impuestos'] = $impuestosConcepto;
         }

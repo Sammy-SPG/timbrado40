@@ -66,7 +66,6 @@ class SiteController extends Controller
 
     public function actionIngresos()
     {
-        // 1. Creamos una instancia del modelo del formulario
         $model = new IngresoForm();
 
         $modalData = [
@@ -75,7 +74,6 @@ class SiteController extends Controller
             'fileName' => Yii::$app->session->getFlash('fileName'),
         ];
 
-        // 2. Renderizamos la vista y le pasamos el modelo
         return $this->render('ingresos', [
             'model' => $model,
             'modalData' => $modalData
@@ -84,7 +82,6 @@ class SiteController extends Controller
 
     public function actionEgresos()
     {
-        // 1. Creamos una instancia del modelo del formulario
         $model = new EgresoForm();
 
         $modalData = [
@@ -93,7 +90,6 @@ class SiteController extends Controller
             'fileName' => Yii::$app->session->getFlash('fileName'),
         ];
 
-        // 2. Renderizamos la vista y le pasamos el modelo
         return $this->render('egresos', [
             'model' => $model,
             'modalData' => $modalData
@@ -102,7 +98,6 @@ class SiteController extends Controller
 
     public function actionPagos()
     {
-        // 1. Creamos una instancia del modelo del formulario
         $model = new PagoForm();
 
         $modalData = [
@@ -111,7 +106,6 @@ class SiteController extends Controller
             'fileName' => Yii::$app->session->getFlash('fileName'),
         ];
 
-        // 2. Renderizamos la vista y le pasamos el modelo
         return $this->render('pagos', [
             'model' => $model,
             'modalData' => $modalData

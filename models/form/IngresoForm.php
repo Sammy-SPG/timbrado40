@@ -21,7 +21,7 @@ class IngresoForm extends Model
     public $receptorRegimenFiscal;
     public $usoCfdi;
 
-    // --- DATOS DEL CONCEPTO (SIMPLE) ---
+    // --- DATOS DEL CONCEPTO ---
     // Para este demo, solo permitiremos 1 concepto
     public $conceptoClaveProdServ;
     public $conceptoClaveUnidad;
@@ -35,7 +35,6 @@ class IngresoForm extends Model
     public function rules()
     {
         return [
-            // Todos son requeridos
             [[
                 'formaPago',
                 'metodoPago',
@@ -52,8 +51,6 @@ class IngresoForm extends Model
                 'conceptoObjetoImp',
                 'conceptoConIva'
             ], 'required'],
-
-            // Formatos específicos
             ['receptorRfc', 'match', 'pattern' => '/^[A-Z&Ñ]{3,4}[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[A-Z0-9]{2}[0-9A]$/'],
             ['receptorDomicilioFiscal', 'match', 'pattern' => '/^[0-9]{5}$/'],
             [['conceptoCantidad', 'conceptoValorUnitario'], 'number'],
@@ -88,7 +85,6 @@ class IngresoForm extends Model
      */
     public function getDatosParaSdk()
     {
-        // 1. Calcular totales e impuestos (basado en el concepto simple)
         $subtotal = round($this->conceptoCantidad * $this->conceptoValorUnitario, 2);
         $totalIva = 0;
         $impuestosConcepto = null;
@@ -108,7 +104,6 @@ class IngresoForm extends Model
             ]
         ];
 
-        // Estructura de impuestos para el nodo raíz
         $impuestosGlobales = [
             'TotalImpuestosTrasladados' => $totalIva,
             'translados' => [
@@ -124,7 +119,6 @@ class IngresoForm extends Model
 
         $total = $subtotal + $totalIva;
 
-        // 2. Armar el array final
         $datos = [
             // --- Comprobante ---
             "factura" => [
@@ -173,7 +167,6 @@ class IngresoForm extends Model
             ],
         ];
 
-        // Añadir impuestos solo si existen
         if ($impuestosConcepto) {
             $datos['conceptos'][0]['Impuestos'] = $impuestosConcepto;
         }

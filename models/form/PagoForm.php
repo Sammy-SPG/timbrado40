@@ -49,8 +49,6 @@ class PagoForm extends Model
                 'impSaldoAnt',
                 'doctoRelacionadoConIva',
             ], 'required'],
-
-            // Formatos específicos
             ['receptorRfc', 'match', 'pattern' => '/^[A-Z&Ñ]{3,4}[0-9]{2}(0[1-9]|1[0-2])(0[1-9]|[12][0-9]|3[01])[A-Z0-9]{2}[0-9A]$/'],
             ['receptorDomicilioFiscal', 'match', 'pattern' => '/^[0-9]{5}$/'],
             ['idDocumento', 'match', 'pattern' => '/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/', 'message' => 'El UUID no tiene un formato válido.'],
@@ -59,8 +57,6 @@ class PagoForm extends Model
             ['doctoRelacionadoConIva', 'boolean'],
             [['serie', 'folio'], 'string', 'max' => 25],
             ['fechaPago', 'safe'], // 'safe' para 'datetime-local'
-
-            // Validación Lógica
             ['monto', 'compare', 'compareAttribute' => 'impSaldoAnt', 'operator' => '<=', 'message' => 'El monto a pagar no puede ser mayor que el saldo anterior.'],
         ];
     }
